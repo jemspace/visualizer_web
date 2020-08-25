@@ -22,10 +22,6 @@ SIZE=3
 BACKEND_URL = 'http://127.0.0.1:5000'
 
 ERR_TAG = 'Error'
-PLOT_TYPE = 1 #position of plot type in {plots} - scatter, histo, line
-X_LBL = 3
-Y_LBL = 4
-PLOT_NAME = 5
 OVER_TIME_LBL = 'time'
 
 graph_types = du.get_graph_key()
@@ -43,59 +39,28 @@ app = dash.Dash(server=application, external_stylesheets=[dbc.themes.SIMPLEX])
 def serve_layout():
     layout = html.Div(
         [
-            html.H3("upload or chose an existing config"),
-            dcc.Upload( #component that handles config file upload
-                id="upload-data",
-                children=html.Div(
-                    ["[upload a new config]"]
-                ),
-                style={
-                    "width": "45%",
-                    "height": "60px",
-                    "lineHeight": "60px",
-                    "borderWidth": "1px",
-                    "borderStyle": "dashed",
-                    "borderRadius": "5px",
-                    "textAlign": "center",
-                    "margin": "10px",
-                }
-                #multiple=True      # --multiple uploads
-            ),
-            dcc.Upload( #component that handles trace data upload
-                id="upload-trace",
-                children=html.Div(
-                    ["[upload a trace]"]
-                ),
-                style={
-                    "width": "45%",
-                    "height": "60px",
-                    "lineHeight": "60px",
-                    "borderWidth": "1px",
-                    "borderStyle": "dashed",
-                    "borderRadius": "5px",
-                    "textAlign": "center",
-                    "margin": "10px",
-                }
-            ),
-            html.Div(id='config-container',
-                children= [
-                    html.Div(   id='radio', children=[
+            html.H3("build / pick existing config"),
+            dcc.Tabs(id='config-tabs', value='build', children=[
+                dcc.Tab(label='Build config', value='build', 
+                    children=[
+                        dbc.Form( children=get_config_form(), id='config-form' )
+                ]),
+                dcc.Tab(label='Pick existing', value='pick', 
+                    children=[
+                        html.Div(   id='radio', children=[
                         # component to show radio buttons list of available configs
                         dcc.RadioItems(id = 'config-rad', options = fill_config_list() )  
                         ]       ),
-                    dbc.Popover([   # component to display currently chosen config
+                ]),
+            ]),
+            dbc.Popover([   # component to display currently chosen config
                             dbc.PopoverHeader(''),
                             dbc.PopoverBody(''),
                             html.Div(id='current-config', style={'display': 'none'})                       
-                        ], id='config-po',
-                        is_open=False,
-                        target='config-container',
-                        placement='right')
-                ],
-                style={'padding': '10px', 'max-width': '400px', 'margin': 'auto'},
-            ),
-           
+                        ], id='config-po', is_open=False,
+                        target='config-tabs', placement='right'),
             #   Checkbox list of options for graph types
+            html.Br(), html.H3("graph options"),
             html.Div(id='options-container', 
                 children =[
                     dcc.Checklist(
@@ -146,23 +111,29 @@ def serve_layout():
     )
     return layout
 
-
 # ===========================================================================
 
-
-#upload-trace
-@app.callback(
-    Output('traces', 'children'),
-    [Input('upload-trace', 'contents'), Input('upload-trace', 'filename')]
-)
-def upload_trace(contents, name):
-    #{'label': 'Access pattern', 'value': '-p'}
-    options = []
-    return dcc.Checklist(
-        id='trace-options', options=options,
-        labelStyle={'display': 'block', 'column-count': 3},
-        value=[]
-    )
+"""
+    gets available options for building a custom config
+    api call to backend returns options for algorithm, cache_size and dataset
+    categories as a dict
+    dict is expected to have these exact keys (algorithm, cache_size, dataset)
+    because callback updating it depends on the dcc components (checklists)
+    with these exact ids
+"""
+def get_config_form():
+    all_options = requests.get(BACKEND_URL + '/get_conf_options').json()
+    columns = []
+    # expects categories: algorithm, cache_size, dataset
+    for category in all_options:
+        columns.append(
+            dbc.Col(    dbc.FormGroup([
+                dbc.Label(category),
+                dbc.Checklist( 
+                    options=[    {'label':op, 'value':op} for op in all_options[category]  ], id=category )
+                ]), width=6     )
+        )
+    return dbc.Row( columns )
 
 
 """
@@ -194,21 +165,21 @@ def fill_config_list():
     no value is set as chosen.
 """
 @app.callback(
-    Output('radio', 'children'),
-    [Input('upload-data', 'contents'), Input('upload-data', 'filename'), Input('config-rad', 'value')],
+    Output('radio', 'children'), #Input('upload-data', 'contents'), Input('upload-data', 'filename')
+    [Input('config-rad', 'value')],
     [State('config-rad', 'options') ]
 )
-def upd_config(upload_content_enc, upload_name, option, existing_confs):
+def upd_config(option, existing_confs):
     current_conf = None
     current_value = None
-    if upload_content_enc is not None and upload_name is not None: 
+    '''if upload_content_enc is not None and upload_name is not None: 
         upload_content = decode_file(upload_content_enc)
         current_conf = conf_error_check(upload_name, upload_content)
         if current_conf[0] != ERR_TAG: #    current_conf = [name, config]
             ins_id = du.insert_config(json.loads(current_conf[1]), current_conf[0])
             existing_confs.append(  { 'label': current_conf[0], 'value': ins_id }  )
-            current_value = ins_id
-    elif option is not None:
+            current_value = ins_id'''
+    if option is not None:
         current_value = option
         current_conf_body = du.find_config(option)
         current_conf = current_conf_body
@@ -240,26 +211,29 @@ def conf_error_check(name, conf):
 
 
 """
-    Updates a Popover component config-po that displays currently chosen config
-    - popover displays the contents of the currently chosen config;
-    Clears the Upload component (replaces the uploaded file that is no
-    longer in use with None);
+    Updates a Popover component config-po that displays currently chosen or
+    built config - popover displays the contents of the current config;
+    returns array of 2 outputs: currently chosen/built config
+    and boolean value that opens/closes the popover
 """
 @app.callback(
-    [Output('config-po', 'children'), Output('config-po', 'is_open'), 
-    Output('upload-data', 'contents'), Output('upload-data', 'filename')],
-    [Input('config-rad', 'value')]
+    [Output('config-po', 'children'), Output('config-po', 'is_open')],
+    [Input('config-rad', 'value'), Input('config-tabs', 'value'), 
+    Input('algorithm', 'value'), Input('cache_size', 'value'), Input('dataset', 'value')] 
+        #add extra param for algorithm options
 )
-def upd_config_display(conf_id):
-    if conf_id is not None:
+def upd_config_display(conf_id, tab, builder_algos, builder_sizes, builder_traces):
+    r=[]
+    conf={}
+    if tab == 'pick' and conf_id is not None:
         conf = du.find_config(conf_id)
-        r = [
-            dbc.PopoverHeader('config name'), # name of config at [0]
-            dbc.PopoverBody(conf) ,     # config contents at [1] 
-            html.Div(id='current-config', children = conf, style={'display': 'none'})
-        ]
-        return r, True, None, None
-    return [], False, None, None
+    elif tab == 'build':
+        conf={  'cache_sizes': builder_sizes, 'algorithms' : builder_algos, 
+                'traces': builder_traces   }
+    r.extend((   dbc.PopoverHeader('Current config'), 
+            dbc.PopoverBody(str(conf)) ,    
+            html.Div(id='current-config', children = str(conf), style={'display': 'none'})   ) )
+    return r, (tab=='build' or conf_id)
     
 
 
@@ -272,32 +246,24 @@ def upd_config_display(conf_id):
 @app.callback(
     Output('graph-target', 'children'),
     [Input('submit', 'n_clicks')],
-    [State('graph-options', 'value'), State('current-config', 'children'), 
-    State('graph-list', 'children'), State('graph-target', 'children')]  
+    [State('graph-options', 'value'), State('current-config', 'children')]  
 )
-def prep_graph_divs(clicks, graph_opts, config, prev_params, prev_graphs):
+def prep_graph_divs(clicks, graph_opts, config):
     if clicks is None or clicks == 0:
         return html.Div( id='graph-list', style={'display': 'none'})
     all_divs = []
     # /get_permutations
-    pl = {'config':str(config), 'flag': str(graph_opts)}
+    pl = {'config':str(config), 'graph flag': str(graph_opts)}
     resp = requests.post(BACKEND_URL + '/get_permutations',data = pl)
+    print(resp)
     graph_params = json.loads(resp.text)
-    print(graph_params)
-    if prev_params is not None:
-        graph_params = [i for i in graph_params if i not in prev_params] 
     all_divs.append( html.Div( 
         id='graph-list',
         children=graph_params,
         style={'display': 'none'}
         ) )
-    start=0
-    try: 
-        all_divs.extend(prev_graphs[1:])
-        start = len(prev_graphs)
-    except: pass 
-
-    for i in range(start, ( start + len(graph_params) )): #starting from last graph
+    print(graph_params)
+    for i in range( len(graph_params)): #starting from last graph
         all_divs.append( html.Div(
             id={'type':'graph-div', 'index': i }
         ))
@@ -342,26 +308,26 @@ def add_graph(g_id, conf, params):
     d_resp = json.loads(e_resp.text)
     print(d_resp)
     xs = list(map(int, d_resp['xaxis'][1:-1].split(',')))
-    ys = list(map(int, d_resp['yaxis'][1:-1].split(',')))
-    title = d_resp['title']
+    ys = list(map(float, d_resp['yaxis'][1:-1].split(',')))
+    title = d_resp['res_title']
     graph=None
     flag = params[FLAG]
-    print("calls graphing >>>>")
-    if graph_types[flag][PLOT_TYPE] == "scatter":
+    print("graphing >>>>")
+    if graph_types[flag]['graph_type'] == "scatter":
         graph = get_scatter(
-        g_id, graph_types[flag][PLOT_NAME] + " " + title , xs, ys, 
-        OVER_TIME_LBL, graph_types[flag][Y_LBL]
+        g_id, graph_types[flag]['title'] + " " + title , xs, ys, 
+        OVER_TIME_LBL, graph_types[flag]['y_label']
         )
-    if graph_types[flag][PLOT_TYPE] == "histogram":
+    if graph_types[flag]['graph_type'] == "histogram":
         xs = list(xs)
         graph = get_bar(
-        g_id, graph_types[flag][PLOT_NAME] + title, xs, ys, 
-        graph_types[flag][X_LBL], graph_types[flag][Y_LBL]
+        g_id, graph_types[flag]['title'] + title, xs, ys, 
+        graph_types[flag]['x_label'], graph_types[flag]['y_label']
         )
-    elif graph_types[flag][PLOT_TYPE] == "line":
+    elif graph_types[flag]['graph_type'] == "line":
         graph = get_line(
         g_id, title, xs, ys, 
-        OVER_TIME_LBL, graph_types[flag][Y_LBL]
+        OVER_TIME_LBL, graph_types[flag]['y_label']
         )
     return graph
 
@@ -584,4 +550,27 @@ if __name__ == "__main__":
     app.run_server(debug=True, port=5055)'''
 
 if __name__ == "__main__":
-    app.run_server(host='0.0.0.0')
+    #app.run_server(host='0.0.0.0')
+    app.run_server(debug=True)
+
+
+
+'''
+dcc.Upload( #component that handles config file upload
+                id="upload-data",
+                children=html.Div(
+                    ["[upload a new config]"]
+                ),
+                style={
+                    "width": "45%",
+                    "height": "60px",
+                    "lineHeight": "60px",
+                    "borderWidth": "1px",
+                    "borderStyle": "dashed",
+                    "borderRadius": "5px",
+                    "textAlign": "center",
+                    "margin": "10px",
+                }
+                #multiple=True      # --multiple uploads
+            ),
+'''

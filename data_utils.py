@@ -25,7 +25,6 @@ def get_graph_key():
     gr_types = db.graph_types
     key = gr_types.find_one({"name": "graph type key"})
     #json_key = json.dumps(key)
-    print(key['-r'])
     return key
 
 # -------------------------- copied from storage.py -----------------------------
