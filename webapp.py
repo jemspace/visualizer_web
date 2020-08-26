@@ -126,11 +126,15 @@ def get_config_form():
     columns = []
     # expects categories: algorithm, cache_size, dataset
     for category in all_options:
+        cat_options = [    {'label':op, 'value':op} for op in all_options[category]  ]
+        if category == 'dataset': 
+            cat_options.append( {'label':'home4-sample.blkparse', 'value':'home4-sample.blkparse'} )
+            cat_options.append( {'label':'casa-110108-112108.8.blkparse', 'value':'casa-110108-112108.8.blkparse'} )
         columns.append(
             dbc.Col(    dbc.FormGroup([
                 dbc.Label(category),
                 dbc.Checklist( 
-                    options=[    {'label':op, 'value':op} for op in all_options[category]  ], id=category )
+                    options=cat_options, id=category )
                 ]), width=6     )
         )
     return dbc.Row( columns )
@@ -172,13 +176,6 @@ def fill_config_list():
 def upd_config(option, existing_confs):
     current_conf = None
     current_value = None
-    '''if upload_content_enc is not None and upload_name is not None: 
-        upload_content = decode_file(upload_content_enc)
-        current_conf = conf_error_check(upload_name, upload_content)
-        if current_conf[0] != ERR_TAG: #    current_conf = [name, config]
-            ins_id = du.insert_config(json.loads(current_conf[1]), current_conf[0])
-            existing_confs.append(  { 'label': current_conf[0], 'value': ins_id }  )
-            current_value = ins_id'''
     if option is not None:
         current_value = option
         current_conf_body = du.find_config(option)
@@ -222,14 +219,14 @@ def conf_error_check(name, conf):
     Input('algorithm', 'value'), Input('cache_size', 'value'), Input('dataset', 'value')] 
         #add extra param for algorithm options
 )
-def upd_config_display(conf_id, tab, builder_algos, builder_sizes, builder_traces):
+def upd_config_display(conf_id, tab, builder_algos, builder_sizes, builder_dataset):
     r=[]
     conf={}
     if tab == 'pick' and conf_id is not None:
         conf = du.find_config(conf_id)
     elif tab == 'build':
         conf={  'cache_sizes': builder_sizes, 'algorithms' : builder_algos, 
-                'traces': builder_traces   }
+                'traces': builder_dataset  }
     r.extend((   dbc.PopoverHeader('Current config'), 
             dbc.PopoverBody(str(conf)) ,    
             html.Div(id='current-config', children = str(conf), style={'display': 'none'})   ) )
