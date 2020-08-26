@@ -135,9 +135,31 @@ def get_config_form():
                 dbc.Label(category),
                 dbc.Checklist( 
                     options=cat_options, id=category )
-                ]), width=6     )
+                ]), width=4     )
         )
+    columns.append(     dbc.Col(    dbc.FormGroup([
+        dbc.Label('trace file'),
+        dbc.Checklist( 
+            options=[], id='trace-file' )
+        ]), width=4     )
+    )
     return dbc.Row( columns )
+
+"""
+    filters out trace options
+    trace files available for generating graphs are determined
+    by the chosen dataset ('dataset' checklist component in 'build' config menu tab)
+"""
+@app.callback(
+    Output('trace-file', 'options'),
+    [Input('dataset', 'value')]
+)
+def filter_trace_opts(dataset):
+    if dataset == 'home4-sample.blkparse' or dataset == 'casa-110108-112108.8.blkparse':
+        return [{'label':dataset, 'value':dataset}]
+    pld = {'dataset': dataset}
+    trace_opts = requests.post(BACKEND_URL + '/get_trace_options', data=pld).json()
+    return [ {'label':op, 'value':op} for op in trace_opts]
 
 
 """
@@ -216,17 +238,17 @@ def conf_error_check(name, conf):
 @app.callback(
     [Output('config-po', 'children'), Output('config-po', 'is_open')],
     [Input('config-rad', 'value'), Input('config-tabs', 'value'), 
-    Input('algorithm', 'value'), Input('cache_size', 'value'), Input('dataset', 'value')] 
+    Input('algorithm', 'value'), Input('cache_size', 'value'), Input('dataset', 'value'), Input('trace-file', 'value')] 
         #add extra param for algorithm options
 )
-def upd_config_display(conf_id, tab, builder_algos, builder_sizes, builder_dataset):
+def upd_config_display(conf_id, tab, builder_algos, builder_sizes, builder_dataset, builder_traces):
     r=[]
     conf={}
     if tab == 'pick' and conf_id is not None:
         conf = du.find_config(conf_id)
     elif tab == 'build':
         conf={  'cache_sizes': builder_sizes, 'algorithms' : builder_algos, 
-                'traces': builder_dataset  }
+                'dataset': builder_dataset, 'traces': builder_traces  }
     r.extend((   dbc.PopoverHeader('Current config'), 
             dbc.PopoverBody(str(conf)) ,    
             html.Div(id='current-config', children = str(conf), style={'display': 'none'})   ) )
