@@ -128,8 +128,7 @@ def get_config_form():
     # category dataset replaced by pages listing trace files
     for category in all_options:
         cat_options = [    {'label':op, 'value':op} for op in all_options[category]  ]
-        if category == 'dataset': 
-            cat_options = [ {'label': 'page ' + str(i), 'value': i} for i in range(11)]
+        if category == 'dataset': cat_options.append( {'label':'preloaded', 'value':'preloaded'} )
         columns.append(
             dbc.Col(    dbc.FormGroup([
                 dbc.Label(category),
@@ -155,16 +154,19 @@ def get_config_form():
 )
 def filter_trace_opts(dataset_opt):
     if dataset_opt is None or dataset_opt == []: return []
-    if 10 in dataset_opt:
+    if 'preloaded' in dataset_opt:
         return [ {'label': 'home4-sample.blkparse', 'value': 'home4-sample.blkparse'},
             {'label': 'casa-110108-112108.8.blkparse', 'value': 'casa-110108-112108.8.blkparse'}
         ]
-    # dataset filter disabled
-    # to include filter: pld = {'param': 'dataset,'+ dataset_opt}
-    pld = {'param': 'none'}
-    trace_opts = requests.post(BACKEND_URL + '/get_trace_options', data=pld).json()
-    page = int(dataset_opt[-1])*10
-    return [ {'label':trace, 'value':trace} for trace in trace_opts[page:page+10]]
+    # dataset filter; to disabple: pld = {'param': 'none'}
+    # to include filter: pld = {'param': 'dataset,'+ dataset_opt} 'param':'dataset,FIU'
+    trace_opts = []
+    for opt in dataset_opt:
+        pld = {'param': 'dataset,'+opt}
+        filtered_opts = requests.post(BACKEND_URL + '/get_trace_options', data=pld).json()
+        trace_opts.extend(filtered_opts)
+
+    return [ {'label':trace, 'value':trace} for trace in trace_opts]
 
 
 """
@@ -573,26 +575,5 @@ app.layout = serve_layout()
 
 
 if __name__ == "__main__":
-    app.run_server(host='0.0.0.0', port=5055, debug=True)
-    #app.run_server(debug=True)
-
-
-'''
-dcc.Upload( #component that handles config file upload
-                id="upload-data",
-                children=html.Div(
-                    ["[upload a new config]"]
-                ),
-                style={
-                    "width": "45%",
-                    "height": "60px",
-                    "lineHeight": "60px",
-                    "borderWidth": "1px",
-                    "borderStyle": "dashed",
-                    "borderRadius": "5px",
-                    "textAlign": "center",
-                    "margin": "10px",
-                }
-                #multiple=True      # --multiple uploads
-            ),
-'''
+    app.run_server( port=5055, debug=True)
+    #app.run_server(debug=True)   host='0.0.0.0',
