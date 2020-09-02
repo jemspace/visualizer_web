@@ -58,7 +58,7 @@ def serve_layout():
                             dbc.PopoverBody(''),
                             html.Div(id='current-config', style={'display': 'none'})                       
                         ], id='config-po', is_open=False,
-                        target='config-tabs', placement='right'),
+                        target='config-tabs', placement='bottom'),
             #   Checkbox list of options for graph types
             html.Br(), html.H3("graph options"),
             html.Div(id='options-container', 
@@ -128,8 +128,7 @@ def get_config_form():
     for category in all_options:
         cat_options = [    {'label':op, 'value':op} for op in all_options[category]  ]
         if category == 'dataset': 
-            cat_options.append( {'label':'home4-sample.blkparse', 'value':'home4-sample.blkparse'} )
-            cat_options.append( {'label':'casa-110108-112108.8.blkparse', 'value':'casa-110108-112108.8.blkparse'} )
+            cat_options = [ {'label': 'page ' + str(i), 'value': i} for i in range(11)]
         columns.append(
             dbc.Col(    dbc.FormGroup([
                 dbc.Label(category),
@@ -139,8 +138,7 @@ def get_config_form():
         )
     columns.append(     dbc.Col(    dbc.FormGroup([
         dbc.Label('trace file'),
-        dbc.Checklist( 
-            options=[], id='trace-file' )
+        dbc.Checklist( id='trace-file' )
         ]), width=4     )
     )
     return dbc.Row( columns )
@@ -154,12 +152,18 @@ def get_config_form():
     Output('trace-file', 'options'),
     [Input('dataset', 'value')]
 )
-def filter_trace_opts(dataset):
-    if dataset == 'home4-sample.blkparse' or dataset == 'casa-110108-112108.8.blkparse':
-        return [{'label':dataset, 'value':dataset}]
-    pld = {'dataset': dataset}
+def filter_trace_opts(dataset_opt):
+    if dataset_opt is None or dataset_opt == []: return []
+    if 10 in dataset_opt:
+        return [ {'label': 'home4-sample.blkparse', 'value': 'home4-sample.blkparse'},
+            {'label': 'casa-110108-112108.8.blkparse', 'value': 'casa-110108-112108.8.blkparse'}
+        ]
+    # dataset filter disabled
+    # to include filter: pld = {'param': 'dataset,'+ dataset_opt}
+    pld = {'param': 'none'}
     trace_opts = requests.post(BACKEND_URL + '/get_trace_options', data=pld).json()
-    return [ {'label':op, 'value':op} for op in trace_opts]
+    page = int(dataset_opt[-1])*10
+    return [ {'label':trace, 'value':trace} for trace in trace_opts[page:page+10]]
 
 
 """
