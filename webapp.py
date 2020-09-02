@@ -125,6 +125,7 @@ def get_config_form():
     all_options = requests.get(BACKEND_URL + '/get_conf_options').json()
     columns = []
     # expects categories: algorithm, cache_size, dataset
+    # category dataset replaced by pages listing trace files
     for category in all_options:
         cat_options = [    {'label':op, 'value':op} for op in all_options[category]  ]
         if category == 'dataset': 
@@ -329,7 +330,6 @@ def add_graph(g_id, conf, params):
     pload = {'config':str(conf), 'params': str(params)}
     e_resp = requests.post(BACKEND_URL + '/get_graph', data = pload)
     d_resp = json.loads(e_resp.text)
-    print(d_resp)
     xs = list(map(int, d_resp['xaxis'][1:-1].split(',')))
     ys = list(map(float, d_resp['yaxis'][1:-1].split(',')))
     title = d_resp['res_title']
@@ -568,14 +568,13 @@ def get_an_heatmap(idx, title, xs, ys, zs, x_label, y_label):
 
 app.layout = serve_layout()
 
-'''
-if __name__ == "__main__":
-    app.run_server(debug=True, port=5055)'''
+#if __name__ == "__main__":
+#    app.run_server(debug=True, port=5055)
+
 
 if __name__ == "__main__":
-    #app.run_server(host='0.0.0.0')
-    app.run_server(debug=True)
-
+    app.run_server(host='0.0.0.0', port=5055, debug=True)
+    #app.run_server(debug=True)
 
 
 '''
