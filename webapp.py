@@ -125,10 +125,10 @@ def get_config_form():
     all_options = requests.get(BACKEND_URL + '/get_conf_options').json()
     columns = []
     # expects categories: algorithm, cache_size, dataset
+    # category dataset replaced by pages listing trace files
     for category in all_options:
         cat_options = [    {'label':op, 'value':op} for op in all_options[category]  ]
-        if category == 'dataset': 
-            cat_options = [ {'label': 'page ' + str(i), 'value': i} for i in range(11)]
+        if category == 'dataset': cat_options.append( {'label':'preloaded', 'value':'preloaded'} )
         columns.append(
             dbc.Col(    dbc.FormGroup([
                 dbc.Label(category),
@@ -154,16 +154,19 @@ def get_config_form():
 )
 def filter_trace_opts(dataset_opt):
     if dataset_opt is None or dataset_opt == []: return []
-    if 10 in dataset_opt:
+    if 'preloaded' in dataset_opt:
         return [ {'label': 'home4-sample.blkparse', 'value': 'home4-sample.blkparse'},
             {'label': 'casa-110108-112108.8.blkparse', 'value': 'casa-110108-112108.8.blkparse'}
         ]
-    # dataset filter disabled
-    # to include filter: pld = {'param': 'dataset,'+ dataset_opt}
-    pld = {'param': 'none'}
-    trace_opts = requests.post(BACKEND_URL + '/get_trace_options', data=pld).json()
-    page = int(dataset_opt[-1])*10
-    return [ {'label':trace, 'value':trace} for trace in trace_opts[page:page+10]]
+    # dataset filter; to disabple: pld = {'param': 'none'}
+    # to include filter: pld = {'param': 'dataset,'+ dataset_opt} 'param':'dataset,FIU'
+    trace_opts = []
+    for opt in dataset_opt:
+        pld = {'param': 'dataset,'+opt}
+        filtered_opts = requests.post(BACKEND_URL + '/get_trace_options', data=pld).json()
+        trace_opts.extend(filtered_opts)
+
+    return [ {'label':trace, 'value':trace} for trace in trace_opts]
 
 
 """
@@ -329,7 +332,6 @@ def add_graph(g_id, conf, params):
     pload = {'config':str(conf), 'params': str(params)}
     e_resp = requests.post(BACKEND_URL + '/get_graph', data = pload)
     d_resp = json.loads(e_resp.text)
-    print(d_resp)
     xs = list(map(int, d_resp['xaxis'][1:-1].split(',')))
     ys = list(map(float, d_resp['yaxis'][1:-1].split(',')))
     title = d_resp['res_title']
@@ -568,11 +570,12 @@ def get_an_heatmap(idx, title, xs, ys, zs, x_label, y_label):
 
 app.layout = serve_layout()
 
-'''
-if __name__ == "__main__":
-    app.run_server(debug=True, port=5055)'''
+#if __name__ == "__main__":
+#    app.run_server(debug=True, port=5055)
+
 
 if __name__ == "__main__":
+<<<<<<< HEAD
     #app.run_server(host='0.0.0.0')
     app.run_server(debug=True)
 
@@ -597,3 +600,7 @@ dcc.Upload( #component that handles config file upload
                 #multiple=True      # --multiple uploads
             ),
 '''
+=======
+    app.run_server( port=5055, debug=True)
+    #app.run_server(debug=True)   host='0.0.0.0',
+>>>>>>> 2fcf0fcc39d0c7736af165a8d4f2e97c4a370af3
