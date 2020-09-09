@@ -575,32 +575,5 @@ app.layout = serve_layout()
 
 
 if __name__ == "__main__":
-<<<<<<< HEAD
-    #app.run_server(host='0.0.0.0')
-    app.run_server(debug=True)
-
-
-
-'''
-dcc.Upload( #component that handles config file upload
-                id="upload-data",
-                children=html.Div(
-                    ["[upload a new config]"]
-                ),
-                style={
-                    "width": "45%",
-                    "height": "60px",
-                    "lineHeight": "60px",
-                    "borderWidth": "1px",
-                    "borderStyle": "dashed",
-                    "borderRadius": "5px",
-                    "textAlign": "center",
-                    "margin": "10px",
-                }
-                #multiple=True      # --multiple uploads
-            ),
-'''
-=======
-    app.run_server( port=5055, debug=True)
+    app.run_server(host='0.0.0.0', port=5055, debug=True)
     #app.run_server(debug=True)   host='0.0.0.0',
->>>>>>> 2fcf0fcc39d0c7736af165a8d4f2e97c4a370af3
