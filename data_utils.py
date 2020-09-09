@@ -25,6 +25,8 @@ def get_graph_key():
     gr_types = db.graph_types
     key = gr_types.find_one({"name": "graph type key"})
     #json_key = json.dumps(key)
+    del key['_id']
+    del key['name']
     return key
 
 # -------------------------- copied from storage.py -----------------------------
@@ -46,28 +48,6 @@ def find_config(c_id):
         all_configs.find_one({"_id": ObjectId(str(c_id))}), default=json_util.default, indent=4)
     #config = all_configs.find_one({"_id": c_id})
     return json_cfg
-
-def insert_config(config, name):
-    print("IN INSERT CONFIG")
-    conf = db.configs
-    conf_obj = conf.find_one({'name': name})
-    ins =''
-    all_traces = []
-    if conf_obj == None:
-        for traces in set(config['traces']):
-            for trace_names in StatGen.generateTraceNames(traces):
-               all_traces.append(os.path.basename(trace_names))  
-               print(os.path.basename(trace_names))   
-        # got an error saying a set cannot be encoded by json so I make it a set and then a list again. 
-        # The reason it is cast as a set is to remove duplicates in a simple manner 
-        all_traces = set(all_traces)
-        all_traces =  list(all_traces)
-        config['traces'] = all_traces
-        config["name"] = name
-    ins = str(conf.insert_one(config).inserted_id)
-    return ins
-# -------------------------- copied from storage.py -----------------------------
-
 
 
 def catch_config_errors(config):
