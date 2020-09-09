@@ -65,22 +65,8 @@ def serve_layout():
                 children =[
                     dcc.Checklist(
                         id='graph-options',
-                        options=[
-                            {'label': 'Access pattern', 'value': '-p'},
-                            {'label': 'Reuse distance', 'value': '-r'},
-                            {'label': 'Request frequency', 'value': '-g'},
-                            {'label': 'Hit rate', 'value': '-H'},
-                            {'label': 'Pollution', 'value': '-P'},
-                            {'label': 'Miss rate', 'value': '-m'},
-                            {'label': 'Lecar - LRU weight', 'value': '-l'},
-                            {'label': 'Value of Arc P', 'value': '-w'},
-                            {'label': 'Dlirs Stack Size', 'value': '-d'},
-                            {'label': 'Cacheus - LRU weight', 'value': '-y'},
-                            {'label': 'Cacheus Learning Rate', 'value': '-x'},
-                            {'label': 'Cacheus SR Stack Size', 'value': '-z'}
-                            ],
-                            labelStyle={'display': 'block', 'column-count': 3},
-                            value=[]
+                        options= get_graph_types(),
+                            labelStyle={'display': 'block', 'column-count': 3}
                         )
                     ], 
                 style={ 'max-width' : '600px', 'max-width': '200px' }
@@ -128,7 +114,6 @@ def get_config_form():
     # category dataset replaced by pages listing trace files
     for category in all_options:
         cat_options = [    {'label':op, 'value':op} for op in all_options[category]  ]
-        if category == 'dataset': cat_options.append( {'label':'preloaded', 'value':'preloaded'} )
         columns.append(
             dbc.Col(    dbc.FormGroup([
                 dbc.Label(category),
@@ -154,10 +139,10 @@ def get_config_form():
 )
 def filter_trace_opts(dataset_opt):
     if dataset_opt is None or dataset_opt == []: return []
-    if 'preloaded' in dataset_opt:
+    """if 'preloaded' in dataset_opt:
         return [ {'label': 'home4-sample.blkparse', 'value': 'home4-sample.blkparse'},
             {'label': 'casa-110108-112108.8.blkparse', 'value': 'casa-110108-112108.8.blkparse'}
-        ]
+        ]"""
     # dataset filter; to disabple: pld = {'param': 'none'}
     # to include filter: pld = {'param': 'dataset,'+ dataset_opt} 'param':'dataset,FIU'
     trace_opts = []
@@ -178,14 +163,22 @@ def decode_file(content):
     return base64.decodebytes(data)
 
 """
-    Retrieves a list of existing config files from Mongo
-    (currently not in use)
+    Gets a list of existing config files from Mongo
 """
 def fill_config_list():
     conf_list = []
     for c in du.get_all_configs():
         conf_list.append(        {'label': c['name'], 'value': str(c['_id'])}         )
     return conf_list
+
+"""
+    Gets a list of all available graph types
+    based on graph keys from Mongo
+"""
+def get_graph_types():
+    types = graph_types
+    return [ {'label': graph['minio_flag'].replace('_', ' '), 'value': flag } 
+        for flag, graph in graph_types.items()  ]
 
 
 
