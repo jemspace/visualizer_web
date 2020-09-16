@@ -575,14 +575,5 @@ app.layout = serve_layout()
 
 
 if __name__ == "__main__":
-<<<<<<< HEAD
-    #app.run_server(host='0.0.0.0')
-    app.run_server(debug=True)
-
-
-
-
-=======
     app.run_server(host='0.0.0.0', port=5055, debug=True)
     #app.run_server(debug=True)   host='0.0.0.0',
->>>>>>> 848683e6401cc2216f35f4333135c50db3965a4e
