@@ -368,14 +368,13 @@ def render_heatmap(clicks, conf):
     ylbl = 'algorithm'
     conf = json.loads(conf.replace('\'', '\"'))
     pld={'dataset': ",".join(conf['dataset']), 'algs': ",".join(conf['algorithms']),
-        'cache size': ",".join(conf['cache_sizes'])} 
+        'cache size': str(conf['cache_sizes'])[1:-1]} 
 
     r = requests.post(BACKEND_URL + '/get_heat', data=pld)
     xyzs = r.json()
     xs = xyzs['x_cache']
     ys = xyzs['y_algs']
     zs = xyzs['data']
-    print(zs)
     return get_an_heatmap(index, title, xs, ys, zs, xlbl, ylbl)
 
 
@@ -575,5 +574,6 @@ app.layout = serve_layout()
 
 
 if __name__ == "__main__":
-    app.run_server(host='0.0.0.0', port=5055, debug=True)
+    app.run_server(host='0.0.0.0', port=8050, debug=True)
     #app.run_server(debug=True)   host='0.0.0.0',
+
