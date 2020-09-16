@@ -28,8 +28,8 @@ graph_types = du.get_graph_key()
 
 
 
-application = flask.Flask(__name__)
-app = dash.Dash(server=application, external_stylesheets=[dbc.themes.SIMPLEX])
+server = flask.Flask(__name__)
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.SIMPLEX], server=server)
 
 
 """
@@ -303,6 +303,7 @@ def prep_graph_divs(clicks, graph_opts, config):
 def render_graph(current_div, graph_list, conf):
     if current_div is None: return ''
     # check for errors in graphs parameters
+    print("render graph checked div >>>")
     if graph_list[current_div['index']].startswith(ERR_TAG):
         return html.Div( 
             id={'type':'figure', 'index':current_div['index']},
@@ -574,9 +575,14 @@ app.layout = serve_layout()
 
 
 if __name__ == "__main__":
+<<<<<<< HEAD
     #app.run_server(host='0.0.0.0')
     app.run_server(debug=True)
 
 
 
 
+=======
+    app.run_server(host='0.0.0.0', port=5055, debug=True)
+    #app.run_server(debug=True)   host='0.0.0.0',
+>>>>>>> 848683e6401cc2216f35f4333135c50db3965a4e
