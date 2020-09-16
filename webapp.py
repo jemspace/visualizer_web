@@ -360,15 +360,21 @@ def add_graph(g_id, conf, params):
     [State('current-config', 'children')]
 )
 def render_heatmap(clicks, conf):
-    if clicks is None or clicks: return '0' # DISABLED *********************************************************
-    cf = json.load(open('rank.config'))
+    if clicks is None: return '0' 
     title = 'ranking heatmap'
     index = 1
     xlbl = 'cache size'
     ylbl = 'algorithm'
-    # index = y, column = x, value = z
-    xs, ys, zs = 0,0,0 # csvp.dash_rank_heat_map(cf)
-    #get_heatmap
+    conf = json.loads(conf.replace('\'', '\"'))
+    pld={'dataset': ",".join(conf['dataset']), 'algs': ",".join(conf['algorithms']),
+        'cache size': ",".join(conf['cache_sizes'])} 
+
+    r = requests.post(BACKEND_URL + '/get_heat', data=pld)
+    xyzs = r.json()
+    xs = xyzs['x_cache']
+    ys = xyzs['y_algs']
+    zs = xyzs['data']
+    print(zs)
     return get_an_heatmap(index, title, xs, ys, zs, xlbl, ylbl)
 
 
@@ -568,32 +574,9 @@ app.layout = serve_layout()
 
 
 if __name__ == "__main__":
-<<<<<<< HEAD
     #app.run_server(host='0.0.0.0')
     app.run_server(debug=True)
 
 
 
-'''
-dcc.Upload( #component that handles config file upload
-                id="upload-data",
-                children=html.Div(
-                    ["[upload a new config]"]
-                ),
-                style={
-                    "width": "45%",
-                    "height": "60px",
-                    "lineHeight": "60px",
-                    "borderWidth": "1px",
-                    "borderStyle": "dashed",
-                    "borderRadius": "5px",
-                    "textAlign": "center",
-                    "margin": "10px",
-                }
-                #multiple=True      # --multiple uploads
-            ),
-'''
-=======
-    app.run_server( port=5055, debug=True)
-    #app.run_server(debug=True)   host='0.0.0.0',
->>>>>>> 2fcf0fcc39d0c7736af165a8d4f2e97c4a370af3
+
