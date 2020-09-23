@@ -1,6 +1,7 @@
 import base64
 import json
 import requests
+import uuid 
 
 import flask
 import dash
@@ -58,7 +59,7 @@ def serve_layout():
                             dbc.PopoverBody(''),
                             html.Div(id='current-config', style={'display': 'none'})                       
                         ], id='config-po', is_open=False,
-                        target='config-tabs', placement='bottom'),
+                        target='config-tabs', placement='right'),
             #   Checkbox list of options for graph types
             html.Br(), html.H3("graph options"),
             html.Div(id='options-container', 
@@ -86,6 +87,7 @@ def serve_layout():
                 ],
                 style={'display': 'none'} 
             ),
+            html.Div(id="graph-status", children=[]),
             html.Div(
                 id='graph-target',   # graphs from checkbox list are rendered in this div
                 children=[html.Div(id='graph-list', children=[])]
@@ -98,7 +100,7 @@ def serve_layout():
     return layout
 
 # ===========================================================================
-
+"""    INTERFACE OPTION FILTERS / LAYOUTS    """
 """
     gets available options for building a custom config
     api call to backend returns options for algorithm, cache_size and dataset
@@ -139,10 +141,6 @@ def get_config_form():
 )
 def filter_trace_opts(dataset_opt):
     if dataset_opt is None or dataset_opt == []: return []
-    """if 'preloaded' in dataset_opt:
-        return [ {'label': 'home4-sample.blkparse', 'value': 'home4-sample.blkparse'},
-            {'label': 'casa-110108-112108.8.blkparse', 'value': 'casa-110108-112108.8.blkparse'}
-        ]"""
     # dataset filter; to disabple: pld = {'param': 'none'}
     # to include filter: pld = {'param': 'dataset,'+ dataset_opt} 'param':'dataset,FIU'
     trace_opts = []
@@ -257,10 +255,40 @@ def upd_config_display(conf_id, tab, builder_algos, builder_sizes, builder_datas
 
 
 # ====================================================================================
+
+"""    STATUS UPDATES FOR GRAPHS    """
+"""
+    Provides periodical live updates on the current graphs
+    - status info for current graphs is sent as a response to this post request:
+    requests.post(BACKEND_URL + '/status',data = pl)
+    status corresponds to the id from status-id div, created when graphs are requested
+"""
+@app.callback(
+    Output({'type':'status', 'index': MATCH}, 'children'),
+    [Input({'type':'status-interv', 'index': MATCH}, 'n_intervals')],
+    [State({'type':'status-interv', 'index': MATCH}, 'id')]
+)
+def status_update(interv, request_id):
+    pl = {'id': str(request_id['index'])}
+    stat = requests.post(BACKEND_URL + '/status',data = pl)
+    print("#### " + stat.text + " ####")
+    return stat.text
+
+
+
+def get_request_id():
+    r_id = uuid.uuid4()
+    return r_id
+
+# ==============================================================================
+
+
+"""    GRAPH DATA / GRAPH RENDERING    """
 """
     Prepare divs in which graphs would be rendered; 
     Create a list of parameters for each graph (graph-options * current-config)
-    based on data from current config and chosed graph types in graph-options
+    based on data from current config and chosed graph types in graph-options;
+    Add a status-id div where the id of current request is stored
 """
 @app.callback(
     Output('graph-target', 'children'),
@@ -269,9 +297,10 @@ def upd_config_display(conf_id, tab, builder_algos, builder_sizes, builder_datas
 )
 def prep_graph_divs(clicks, graph_opts, config):
     if clicks is None or clicks == 0:
-        return html.Div( id='graph-list', style={'display': 'none'})
+        return html.Div( id='graph-list', style={'display': 'none'}, children=[
+            html.Div(id='status-id')
+        ])
     all_divs = []
-    # /get_permutations
     pl = {'config':str(config), 'graph flag': str(graph_opts)}
     resp = requests.post(BACKEND_URL + '/get_permutations',data = pl)
     print(resp)
@@ -280,12 +309,18 @@ def prep_graph_divs(clicks, graph_opts, config):
         id='graph-list',
         children=graph_params,
         style={'display': 'none'}
-        ) )
-    print(graph_params)
+        ) )    
     for i in range( len(graph_params)): #starting from last graph
+        r_id = get_request_id()
         all_divs.append( html.Div(
-            id={'type':'graph-div', 'index': i }
+            id={'type':'graph-div', 'index': i }, children=[str(r_id)]
         ))
+        all_divs.append( html.Div( id={'type':'status', 'index': str(r_id) }  ))
+        all_divs.append(    dcc.Interval(
+            id={'type':'status-interv', 'index': str(r_id)},
+            interval=1*1000, # in milliseconds
+            n_intervals=0,
+            )    )
     return all_divs
 
 
@@ -298,9 +333,9 @@ def prep_graph_divs(clicks, graph_opts, config):
 @app.callback(
     Output({'type':'graph-div', 'index': MATCH}, 'children'),
     [Input({'type':'graph-div', 'index': MATCH}, 'id')],
-    [State('graph-list', 'children'), State('current-config', 'children')]
+    [State('graph-list', 'children'), State('current-config', 'children'), State({'type':'graph-div', 'index': MATCH}, 'children')]
 )
-def render_graph(current_div, graph_list, conf):
+def add_graphs_to_div(current_div, graph_list, conf, r_id):
     if current_div is None: return ''
     # check for errors in graphs parameters
     print("render graph checked div >>>")
@@ -310,9 +345,11 @@ def render_graph(current_div, graph_list, conf):
             children=[  "Could not render graph: ", 
                 graph_list[current_div['index']]  ]
         )
+    request_id = r_id[0]
+    print(request_id)
     current_params = graph_list[current_div['index']].split(',')
     print(current_params)
-    return add_graph(current_div['index'], conf, current_params)
+    return render_graph(current_div['index'], conf, current_params, request_id)
 
 
 
@@ -322,8 +359,8 @@ def render_graph(current_div, graph_list, conf):
     on the backend (BACKEND_URL), and calls corresponding graphing function
     (line, scatter or bar, depending on graph type)
 """
-def add_graph(g_id, conf, params):
-    pload = {'config':str(conf), 'params': str(params)}
+def render_graph(g_id, conf, params, request_id):
+    pload = {'config':str(conf), 'params': str(params), 'id':str(request_id)}
     e_resp = requests.post(BACKEND_URL + '/get_graph', data = pload)
     d_resp = json.loads(e_resp.text)
     xs = list(map(int, d_resp['xaxis'][1:-1].split(',')))
@@ -353,7 +390,7 @@ def add_graph(g_id, conf, params):
 
 
 """
-    Creates an annotated heatmap graph
+    Gets data an annotated heatmap graph
 """
 @app.callback(
     Output('map-target', 'children'),
@@ -367,14 +404,20 @@ def render_heatmap(clicks, conf):
     xlbl = 'cache size'
     ylbl = 'algorithm'
     conf = json.loads(conf.replace('\'', '\"'))
-    pld={'dataset': ",".join(conf['dataset']), 'algs': ",".join(conf['algorithms']),
+    pld={'dataset': ",".join(conf['dataset']), 'algos': ",".join(conf['algorithms']),
         'cache size': str(conf['cache_sizes'])[1:-1]} 
 
     r = requests.post(BACKEND_URL + '/get_heat', data=pld)
     xyzs = r.json()
     xs = xyzs['x_cache']
+    print(xs)
+    print('==============')
     ys = xyzs['y_algs']
+    print(ys)
+    print('==============')
     zs = xyzs['data']
+    print(zs)
+    print('==============')
     return get_an_heatmap(index, title, xs, ys, zs, xlbl, ylbl)
 
 
@@ -574,6 +617,6 @@ app.layout = serve_layout()
 
 
 if __name__ == "__main__":
-    app.run_server(host='0.0.0.0', port=8050, debug=True)
+    app.run_server(port=8050, debug=True)
     #app.run_server(debug=True)   host='0.0.0.0',
 
