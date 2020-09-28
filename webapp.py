@@ -264,16 +264,27 @@ def upd_config_display(conf_id, tab, builder_algos, builder_sizes, builder_datas
     status corresponds to the id from status-id div, created when graphs are requested
 """
 @app.callback(
-    Output({'type':'status', 'index': MATCH}, 'children'),
+    [Output({'type':'status', 'index': MATCH}, 'children'), Output( {'type':'status-interv', 'index': MATCH}, 'disabled' )],
     [Input({'type':'status-interv', 'index': MATCH}, 'n_intervals')],
     [State({'type':'status-interv', 'index': MATCH}, 'id')]
 )
 def status_update(interv, request_id):
     pl = {'id': str(request_id['index'])}
-    stat = requests.post(BACKEND_URL + '/status',data = pl)
-    print("#### " + stat.text + " ####")
-    return stat.text
+    stat = requests.post(BACKEND_URL + '/status',data = pl).text
+    print("#### " + stat + " ####")
+    if 'Rendering' in stat:
+        return stat, True
+    return stat, False
 
+
+@app.callback(
+    Output( {'type':'stat-container', 'index': MATCH}, 'children' ),
+    [Input( {'type':'status-interv', 'index': MATCH}, 'disabled' )]
+)
+def stop_status_update(updates_disabled):
+    if updates_disabled:
+        return "~"
+    return "no updates"
 
 
 def get_request_id():
@@ -315,12 +326,13 @@ def prep_graph_divs(clicks, graph_opts, config):
         all_divs.append( html.Div(
             id={'type':'graph-div', 'index': i }, children=[str(r_id)]
         ))
-        all_divs.append( html.Div( id={'type':'status', 'index': str(r_id) }  ))
-        all_divs.append(    dcc.Interval(
-            id={'type':'status-interv', 'index': str(r_id)},
-            interval=1*1000, # in milliseconds
-            n_intervals=0,
-            )    )
+        all_divs.append(
+            html.Div(id = id={'type':'stat-container', 'index': str(r_id) }, children =
+            [   html.Div( id={'type':'status', 'index': str(r_id) }  ), 
+                dcc.Interval(
+                id={'type':'status-interv', 'index': str(r_id)}, interval=2*1000, n_intervals=0   )
+            ]
+        ))
     return all_divs
 
 
