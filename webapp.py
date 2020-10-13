@@ -22,6 +22,7 @@ TRACE=1
 ALGR=2
 SIZE=3
 BACKEND_URL = 'http://127.0.0.1:5000'
+JSON_HEADERS = {'Content-type': 'application/json', 'Accept': 'text/plain'}
 
 ERR_TAG = 'Error'
 OVER_TIME_LBL = 'time'
@@ -163,12 +164,12 @@ def add_learning_rates(clicks):
 )
 def filter_trace_opts(dataset_opt):
     if dataset_opt is None or dataset_opt == []: return []
-    # dataset filter; to disabple: pld = {'param': 'none'}
-    # to include filter: pld = {'param': 'dataset,'+ dataset_opt} 'param':'dataset,FIU'
     trace_opts = []
     for opt in dataset_opt:
-        pld = {'param': 'dataset,'+opt}
-        filtered_opts = requests.post(BACKEND_URL + '/get_trace_options', data=pld).json()
+        pld = {"dataset": opt}
+        print(pld)
+        resp = requests.post(BACKEND_URL + '/get_trace_options', json=pld)
+        filtered_opts = resp.json()
         trace_opts.extend(filtered_opts)
 
     return [ {'label':trace, 'value':trace} for trace in trace_opts]
@@ -268,14 +269,14 @@ def upd_config_display(conf_id, tab, builder_algos, builder_sizes, builder_datas
     if tab == 'pick' and conf_id is not None:
         conf = du.find_config(conf_id)
     elif tab == 'build':
-        conf={  'cache_sizes': builder_sizes, 'algorithms' : builder_algos, 
-                'dataset': builder_dataset, 'traces': builder_traces  }
+        conf={  "cache_sizes": builder_sizes, "algorithms" : builder_algos, 
+                "dataset": builder_dataset, "traces": builder_traces  }
         if builder_algos is not None: 
             for a in builder_algos:
-                if 'lecar' in a or 'cacheus' in a: conf[a] = {'learning rate': builder_lrs}
+                if (a == 'cacheus' or a == 'lirs') and builder_lrs is not None: conf['cacheus, lirs'] = {"learning rate": builder_lrs}
     r.extend((   dbc.PopoverHeader('Current config'), 
             dbc.PopoverBody(str(conf)) ,    
-            html.Div(id='current-config', children = str(conf), style={'display': 'none'})   ) )
+            html.Div(id='current-config', children = json.dumps(conf), style={'display': 'none'})   ) )
     return r, (tab=='build' or conf_id)
     
 
@@ -286,7 +287,7 @@ def upd_config_display(conf_id, tab, builder_algos, builder_sizes, builder_datas
 """
     Provides periodical live updates on the current graphs
     - status info for current graphs is sent as a response to this post request:
-    requests.post(BACKEND_URL + '/status',data = pl)
+    requests.post(BACKEND_URL + '/status',json = pl)
     status corresponds to the id from status-id div, created when graphs are requested
 """
 @app.callback(
@@ -295,8 +296,8 @@ def upd_config_display(conf_id, tab, builder_algos, builder_sizes, builder_datas
     [State({'type':'status-interv', 'index': MATCH}, 'id')]
 )
 def status_update(interv, request_id):
-    pl = {'id': str(request_id['index'])}
-    stat = requests.post(BACKEND_URL + '/status',data = pl).text
+    pl = {"id": str(request_id["index"])}
+    stat = requests.post(BACKEND_URL + '/status',json = pl).text
     print("#### " + stat + " ####")
     if 'Rendering' in stat:
         return stat, True
@@ -350,8 +351,8 @@ def prep_graph_divs(clicks, graph_opts, config):
             html.Div(id='status-id')
         ])
     all_divs = []
-    pl = {'config':str(config), 'graph flag': str(graph_opts)}
-    resp = requests.post(BACKEND_URL + '/get_permutations',data = pl)
+    pl = {"config": config, "graph_flag": graph_opts}
+    resp = requests.post(BACKEND_URL + '/get_permutations',json = pl)
     print('returned with graph perm >>>>>>>')
     graph_params = json.loads(resp.text)
     print(graph_params)
@@ -414,8 +415,8 @@ def add_graphs_to_div(current_div, graph_list, conf):
     (line, scatter or bar, depending on graph type)
 """
 def render_graph(g_id, conf, params, request_id):
-    pload = {'config':str(conf), 'params': str(params), 'id':str(request_id)}
-    e_resp = requests.post(BACKEND_URL + '/get_graph', data = pload)
+    pload = {"config": conf, "params": params, 'id':str(request_id)}
+    e_resp = requests.post(BACKEND_URL + '/get_graph', json = pload)
     d_resp = json.loads(e_resp.text)
     xs = list(map(int, d_resp['xaxis'][1:-1].split(',')))
     ys = list(map(float, d_resp['yaxis'][1:-1].split(',')))
@@ -473,10 +474,10 @@ def render_heatmap(hmap_id, conf):
     xlbl = 'cache size'
     ylbl = 'algorithm'
     conf = json.loads(conf.replace('\'', '\"'))
-    pld={'dataset': ",".join(conf['dataset']), 'algos': ",".join(conf['algorithms']),
-        'cache size': str(conf['cache_sizes'])[1:-1], 'id':hmap_id['index']} 
+    pld={"dataset": conf["dataset"], "algos": conf["algorithms"],
+        "cache size": conf["cache_sizes"], "id":hmap_id["index"]} 
     print(pld)
-    r = requests.post(BACKEND_URL + '/get_heat', data=pld)
+    r = requests.post(BACKEND_URL + '/get_heat', data=json)
     print(r)
     xyzs = r.json()
     xs = xyzs['x_cache']
@@ -524,18 +525,17 @@ def overlay_graph_init(clicks):
 )
 def render_overlay(r_id, conf):
     if r_id is None: return '0'
-    #cf = json.loads(conf.replace('\'', '\"'))
-    flag='-H'
-    pl = {'config':str(conf), 'graph flag': str([flag])}      # -H for hit rate
-    params = json.loads(requests.post(BACKEND_URL + '/get_permutations',data = pl).text)
+    flag='-H'   # -H for hit rate
+    pl = {"config": conf, "graph_flag": [flag] }     
+    params = json.loads(requests.post(BACKEND_URL + '/get_permutations',json = pl).text)
     title = 'comparative hit rate '
     allxys = []
     names=[]
     for p in params:
         # flag, trace, algorithm, size
-        pload = {'config':str(conf), 'params': str(p.split(',')), 'id': str(r_id['index']) }
+        pload = {"config": conf, "params": p.split(','), "id": str(r_id['index']) }
         print(pload)
-        e_resp = requests.post(BACKEND_URL+'/get_graph' ,data = pload)
+        e_resp = requests.post(BACKEND_URL+'/get_graph', json = pload)
         print(e_resp)
         d_resp = json.loads(e_resp.text)
         xs = list(map(int, d_resp['xaxis'][1:-1].split(',')))
