@@ -353,12 +353,12 @@ def prep_graph_divs(clicks, graph_opts, config):
     all_divs = []
     pl = {"config": config, "graph_flag": graph_opts}
     resp = requests.post(BACKEND_URL + '/get_permutations',json = pl)
-    print('returned with graph perm >>>>>>>')
     graph_params = json.loads(resp.text)
     print(graph_params)
     param_list = {}  
     for gp in graph_params: 
         r_id = get_request_id()
+        print(gp)
         param_list[str(r_id)] = gp
         all_divs.append( html.Div(
             id={'type':'graph-div', 'index': str(r_id) }    )
@@ -372,7 +372,7 @@ def prep_graph_divs(clicks, graph_opts, config):
         ))
     all_divs.append( html.Div( 
         id='graph-list',
-        children=str(param_list),
+        children=json.dumps(param_list),
         style={'display': 'none'}
         ) )  
     return all_divs
@@ -394,17 +394,17 @@ def add_graphs_to_div(current_div, graph_list, conf):
     # check for errors in graphs parameters
     print("render graph checked div >>>")
     request_id = current_div['index']
-    current_graph = json.loads(graph_list.replace("\'", "\""))[request_id]
-    if current_graph.startswith(ERR_TAG):
+    current_graph = json.loads(graph_list)[request_id]
+    if ERR_TAG in current_graph:
         return html.Div( 
             id={'type':'figure', 'index':current_div['index']},
             children=[  "Could not render graph: ", 
                 current_graph  ]
         )
-    current_params = current_graph.split(',')
-    print(current_params)
+    #current_params = current_graph.split(',')
+    print(current_graph)
     print(request_id)
-    return render_graph(current_div['index'], conf, current_params, request_id)
+    return render_graph(current_div['index'], conf, current_graph, request_id)
 
 
 
@@ -415,14 +415,15 @@ def add_graphs_to_div(current_div, graph_list, conf):
     (line, scatter or bar, depending on graph type)
 """
 def render_graph(g_id, conf, params, request_id):
-    pload = {"config": conf, "params": params, 'id':str(request_id)}
+    pload = {"config": conf, "id":str(request_id)}
+    pload.update(params)
     e_resp = requests.post(BACKEND_URL + '/get_graph', json = pload)
     d_resp = json.loads(e_resp.text)
     xs = list(map(int, d_resp['xaxis'][1:-1].split(',')))
     ys = list(map(float, d_resp['yaxis'][1:-1].split(',')))
     title = d_resp['res_title']
     graph=None
-    flag = params[FLAG]
+    flag = params['plot']
     print("graphing >>>>")
     if graph_types[flag]['graph_type'] == "scatter":
         graph = get_scatter(
@@ -533,7 +534,8 @@ def render_overlay(r_id, conf):
     names=[]
     for p in params:
         # flag, trace, algorithm, size
-        pload = {"config": conf, "params": p.split(','), "id": str(r_id['index']) }
+        pload = {"config": conf, "id": str(r_id['index']) }
+        pload.update(p)
         print(pload)
         e_resp = requests.post(BACKEND_URL+'/get_graph', json = pload)
         print(e_resp)
@@ -541,9 +543,8 @@ def render_overlay(r_id, conf):
         xs = list(map(int, d_resp['xaxis'][1:-1].split(',')))
         ys = list(map(float, d_resp['yaxis'][1:-1].split(',')))
         t = d_resp['res_title']
-        names.append(p.split(',')[2]) #algorithm name
+        names.append(p['algorithm']) #algorithm name
         allxys.append({'x' : xs, 'y' : ys})
-        t=p.split(',')[1]
         if len(allxys) >= 2: break
 
     return get_line_overlay2(r_id['index'], title+t, allxys, names, OVER_TIME_LBL, graph_types[flag]['y_label'])
