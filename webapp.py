@@ -514,7 +514,19 @@ def overlay_graph_init(clicks):
             id={'type':'status-interv', 'index': str(r_id)}, interval=2*1000, n_intervals=0   )
         ]   )
     ]
-    
+
+
+
+
+def gen_all_pairs(array):
+    final = []
+    for indexes in range(len(array)):
+        arr = []
+        for combi in range(indexes+1, len(array)):
+            arr.append([array[indexes],array[combi]])
+        if len(arr) != 0:
+            final += arr
+    return final
 
 """
     Gets data for a comparative graph of hit rates of two algorithms
@@ -525,13 +537,32 @@ def overlay_graph_init(clicks):
     [State('current-config', 'children')]
 )
 def render_overlay(r_id, conf):
+    print("render overlay called")
     if r_id is None: return '0'
     flag='-H'   # -H for hit rate
-    pl = {"config": conf, "graph_flag": [flag] }     
-    params = json.loads(requests.post(BACKEND_URL + '/get_permutations',json = pl).text)
+    pload = {"config": conf, "id":str(request_id)}
+    pload.update(params)
+    e_resp = requests.post(BACKEND_URL + '/get_graph', json = pload)
     title = 'comparative hit rate '
     allxys = []
     names=[]
+
+    ### sketch for idea
+
+    '''config = json.loads(conf)
+    for p in params:
+        for traces in config['traces']:
+            print("RENDER OVERLAY TRACES")
+            pairs = gen_all_pairs(config['algorithms'])
+            pload = {"config": conf, "id": str(r_id['index']) }
+            pload.update(p)
+            e_resp = requests.post(BACKEND_URL+'/get_time', json = pload)
+            overtime = json.loads(e_resp.text)['time']
+            for cache_sizes in config['cache_sizes']:
+                e_resp = requests.post(BACKEND_URL+'/get_graph', json = pload)'''
+
+    ### 
+
     for p in params:
         # flag, trace, algorithm, size
         pload = {"config": conf, "id": str(r_id['index']) }
