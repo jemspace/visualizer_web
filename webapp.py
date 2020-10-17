@@ -559,7 +559,7 @@ def render_overlay(r_id, conf):
             e_resp = requests.post(BACKEND_URL+'/get_time', json = pload)
             overtime = json.loads(e_resp.text)['time']
             for cache_sizes in config['cache_sizes']:
-                e_resp = requests.post(BACKEND_URL+'/get_graph', json = pload)'''
+                e_resp = requests.post(BACKEND_URL+'/get_y_axis', json = pload)'''
 
     ### 
 
