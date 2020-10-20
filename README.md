@@ -3,6 +3,7 @@
 ### description
 
   **This is a sample version of the application**
+  
   This is the front end of the web-based application for visualizing cache algorithm simulations,
   which is a project for FIU Systems lab
   This is one of the older versions of the web app
@@ -16,5 +17,9 @@
   
 
 ### how to install / run
+  
+  (this will run the app on localhost)
   clone the repository
-  create a python virtual environment
+  create a python virtual environment webenv/ and install everything from requirements with pip
+  run the webapp file with command: python webapp.py
+  
