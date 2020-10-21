@@ -401,7 +401,6 @@ def add_graphs_to_div(current_div, graph_list, conf):
             children=[  "Could not render graph: ", 
                 current_graph  ]
         )
-    #current_params = current_graph.split(',')
     print(current_graph)
     print(request_id)
     return render_graph(current_div['index'], conf, current_graph, request_id)
@@ -539,30 +538,40 @@ def gen_all_pairs(array):
 def render_overlay(r_id, conf):
     print("render overlay called")
     if r_id is None: return '0'
-    flag='-H'   # -H for hit rate
-    pload = {"config": conf, "id":str(request_id)}
-    pload.update(params)
-    e_resp = requests.post(BACKEND_URL + '/get_graph', json = pload)
-    title = 'comparative hit rate '
-    allxys = []
-    names=[]
+    plot="-H"   # -H for hit rate
+    title = "comparative hit rate "
+    all_graphs = []
 
     ### sketch for idea
+    config = json.loads(conf)
+    #for p in params:
+    for atrace in config["traces"]:
+        print("RENDER OVERLAY TRACES")
+        pairs = gen_all_pairs(config["algorithms"])
+        pload = {"config": conf, "trace_name": atrace, "id": str(r_id['index']) }
+        e_resp = requests.post(BACKEND_URL+'/get_time', json = pload)
+        # xs_overtime = json.loads(e_resp.text)['time']
+        xs_overtime = list(map(int, json.loads(e_resp.text)['time'][1:-1].split(',')))
+        for cache_size in config['cache_sizes']:
+            for pair in pairs:
+                pload2 = {"config": conf, "plot": plot, "trace_name": atrace, \
+                    "algorithm": pair[0], "cache_size":cache_size, "id": str(r_id['index']) }
+                e_resp = requests.post(BACKEND_URL+'/get_y_axis', json = pload2)
+                ys_0 = list(map(float, json.loads(e_resp.text)['ydata'][1:-1].split(',')))
 
-    '''config = json.loads(conf)
-    for p in params:
-        for traces in config['traces']:
-            print("RENDER OVERLAY TRACES")
-            pairs = gen_all_pairs(config['algorithms'])
-            pload = {"config": conf, "id": str(r_id['index']) }
-            pload.update(p)
-            e_resp = requests.post(BACKEND_URL+'/get_time', json = pload)
-            overtime = json.loads(e_resp.text)['time']
-            for cache_sizes in config['cache_sizes']:
-                e_resp = requests.post(BACKEND_URL+'/get_y_axis', json = pload)'''
+                pload2["algorithm"] = pair[1]
+                e_resp = requests.post(BACKEND_URL+'/get_y_axis', json = pload2)
+                ys_1 = list(map(float, json.loads(e_resp.text)['ydata'][1:-1].split(',')))
+
+                t = title + json.loads(e_resp.text)['res_title']
+                all_graphs.append(
+                    get_line_overlay2(r_id['index'], t, xs_overtime, ys_0, ys_1, " ***name*** ", 
+                    OVER_TIME_LBL, graph_types[plot]['y_label'])
+                )
+    return all_graphs
 
     ### 
-
+'''
     for p in params:
         # flag, trace, algorithm, size
         pload = {"config": conf, "id": str(r_id['index']) }
@@ -578,7 +587,7 @@ def render_overlay(r_id, conf):
         allxys.append({'x' : xs, 'y' : ys})
         if len(allxys) >= 2: break
 
-    return get_line_overlay2(r_id['index'], title+t, allxys, names, OVER_TIME_LBL, graph_types[flag]['y_label'])
+    return get_line_overlay2(r_id['index'], title+t, allxys, names, OVER_TIME_LBL, graph_types[flag]['y_label'])'''
     
 
 
@@ -671,28 +680,29 @@ def get_bar(idx, title, xs, ys, x_label, y_label):
     shades the difference between the 2 plots based on which plot
     has a higher hit rate at that point
 """
-def get_line_overlay2(idx, title, all_xys, names, x_label, y_label):
+def get_line_overlay2(idx, title, xs, ys0, ys1, names, x_label, y_label):
+    all_xys = xs
     bottom_y=[]
     color1 = 'rgba(3, 128, 166, 0.5)' 
     color2 = 'rgba(217, 44, 22, 0.5)'
-    for i in range(len(all_xys[0]['x'])):
-        if all_xys[0]['y'][i] > all_xys[1]['y'][i]:
-            bottom_y.append(all_xys[1]['y'][i])
+    for i in range(len(xs)):
+        if ys0[i] > ys1[i]:
+            bottom_y.append(ys1[i])
         else:
-            bottom_y.append(all_xys[0]['y'][i])
+            bottom_y.append(ys0[i])
     fig = go.Figure()
     fig.add_trace( go.Scattergl( 
-        x=all_xys[0]['x'], y= all_xys[0]['y'], mode= 'lines', fill='tozeroy', fillcolor=color1, name=names[0]  ) )
+        x=xs, y= ys0, mode= 'lines', fill='tozeroy', fillcolor=color1, name=names[0]  ) )
     fig.add_trace( go.Scattergl( 
-        x=all_xys[1]['x'], y= all_xys[1]['y'], mode='lines', fill='tozeroy', fillcolor=color2, name=names[1]   ) )
-    fig.add_trace( go.Scattergl( 
-        x=all_xys[0]['x'], y=bottom_y , mode= 'none', fill='tozeroy', fillcolor='rgb(255, 255, 255)', showlegend=False  ) )
+        x=xs, y= ys1, mode='lines', fill='tozeroy', fillcolor=color2, name=names[1]   ) )
+    fig.add_trace( go.Scattergl(    # THIS IS THE WHITE FILL HERE
+        x=xs, y=bottom_y , mode= 'none', fill='tozeroy', fillcolor='rgb(255, 255, 255)', showlegend=False  ) )
 
     fig.add_trace( go.Scattergl(
-        x=all_xys[0]['x'], y=all_xys[0]['y'], mode='lines', line=dict(color=color1), showlegend=False   )
+        x=xs, y=ys0, mode='lines', line=dict(color=color1), showlegend=False   )
     )
     fig.add_trace( go.Scattergl(
-        x=all_xys[1]['x'], y=all_xys[1]['y'], mode='lines', line=dict(color=color2), showlegend=False   )
+        x=xs, y=ys1, mode='lines', line=dict(color=color2), showlegend=False   )
     )
     fig.update_layout(
         title = title,
