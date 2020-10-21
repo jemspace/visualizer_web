@@ -565,7 +565,7 @@ def render_overlay(r_id, conf):
 
                 t = title + json.loads(e_resp.text)['res_title']
                 all_graphs.append(
-                    get_line_overlay2(r_id['index'], t, xs_overtime, ys_0, ys_1, " ***name*** ", 
+                    get_line_overlay2(r_id['index'], t, xs_overtime, ys_0, ys_1, pair, 
                     OVER_TIME_LBL, graph_types[plot]['y_label'])
                 )
     return all_graphs
