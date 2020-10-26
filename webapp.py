@@ -418,6 +418,7 @@ def render_graph(g_id, conf, params, request_id):
     pload.update(params)
     e_resp = requests.post(BACKEND_URL + '/get_graph', json = pload)
     d_resp = json.loads(e_resp.text)
+    print(d_resp)
     xs = list(map(int, d_resp['xaxis'][1:-1].split(',')))
     ys = list(map(float, d_resp['yaxis'][1:-1].split(',')))
     title = d_resp['res_title']
@@ -539,35 +540,35 @@ def render_overlay(r_id, conf):
     print("render overlay called")
     if r_id is None: return '0'
     plot="-H"   # -H for hit rate
-    title = "comparative hit rate "
     all_graphs = []
-
     ### sketch for idea
     config = json.loads(conf)
     #for p in params:
     for atrace in config["traces"]:
         print("RENDER OVERLAY TRACES")
         pairs = gen_all_pairs(config["algorithms"])
-        pload = {"config": conf, "trace_name": atrace, "id": str(r_id['index']) }
+        pload = {"config": config, "trace_name": atrace, "id": str(r_id['index']) }
         e_resp = requests.post(BACKEND_URL+'/get_time', json = pload)
-        # xs_overtime = json.loads(e_resp.text)['time']
         xs_overtime = list(map(int, json.loads(e_resp.text)['time'][1:-1].split(',')))
         for cache_size in config['cache_sizes']:
             for pair in pairs:
-                pload2 = {"config": conf, "plot": plot, "trace_name": atrace, \
+                config["algorithms"] = [pair[0]]
+                pload2 = {"config": config, "plot": plot, "trace_name": atrace, 
                     "algorithm": pair[0], "cache_size":cache_size, "id": str(r_id['index']) }
-                e_resp = requests.post(BACKEND_URL+'/get_y_axis', json = pload2)
-                ys_0 = list(map(float, json.loads(e_resp.text)['ydata'][1:-1].split(',')))
-
+                print(pload2)
+                e_resp1 = requests.post(BACKEND_URL+'/get_y_axis', json = pload2)
+                ys_0 = list(map(float, json.loads(e_resp1.text)['ydata'][1:-1].split(',')))
+                config["algorithms"] = [pair[1]]
                 pload2["algorithm"] = pair[1]
-                e_resp = requests.post(BACKEND_URL+'/get_y_axis', json = pload2)
-                ys_1 = list(map(float, json.loads(e_resp.text)['ydata'][1:-1].split(',')))
-
-                t = title + json.loads(e_resp.text)['res_title']
+                print("ITS THE PAIR _________________________")
+                e_resp2 = requests.post(BACKEND_URL+'/get_y_axis', json = pload2)
+                ys_1 = list(map(float, json.loads(e_resp2.text)['ydata'][1:-1].split(',')))
+                t = json.loads(e_resp2.text)['res_title']
                 all_graphs.append(
                     get_line_overlay2(r_id['index'], t, xs_overtime, ys_0, ys_1, pair, 
                     OVER_TIME_LBL, graph_types[plot]['y_label'])
                 )
+                
     return all_graphs
 
     ### 
@@ -681,7 +682,6 @@ def get_bar(idx, title, xs, ys, x_label, y_label):
     has a higher hit rate at that point
 """
 def get_line_overlay2(idx, title, xs, ys0, ys1, names, x_label, y_label):
-    all_xys = xs
     bottom_y=[]
     color1 = 'rgba(3, 128, 166, 0.5)' 
     color2 = 'rgba(217, 44, 22, 0.5)'
