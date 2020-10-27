@@ -139,7 +139,9 @@ def get_config_form():
     )
     return dbc.Row( columns )
 
-
+"""
+    Adds one text input box for the learning rate parameter
+"""
 @app.callback(
     Output('learning-rates', 'children'),
     [Input('add-lr', 'n_clicks')]
@@ -345,7 +347,7 @@ def get_request_id():
     [Input('submit', 'n_clicks')],
     [State('graph-options', 'value'), State('current-config', 'children')]  
 )
-def prep_graph_divs(clicks, graph_opts, config):
+def graph_divs_init(clicks, graph_opts, config):
     if clicks is None or clicks == 0:
         return html.Div( id='graph-list', style={'display': 'none'}, children=[
             html.Div(id='status-id')
@@ -560,10 +562,9 @@ def render_overlay(r_id, conf):
                 ys_0 = list(map(float, json.loads(e_resp1.text)['ydata'][1:-1].split(',')))
                 config["algorithms"] = [pair[1]]
                 pload2["algorithm"] = pair[1]
-                print("ITS THE PAIR _________________________")
                 e_resp2 = requests.post(BACKEND_URL+'/get_y_axis', json = pload2)
                 ys_1 = list(map(float, json.loads(e_resp2.text)['ydata'][1:-1].split(',')))
-                t = json.loads(e_resp2.text)['res_title']
+                t = json.loads(e_resp2.text)['graph_title']
                 all_graphs.append(
                     get_line_overlay2(r_id['index'], t, xs_overtime, ys_0, ys_1, pair, 
                     OVER_TIME_LBL, graph_types[plot]['y_label'])
