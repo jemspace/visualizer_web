@@ -337,10 +337,10 @@ def get_request_id():
 
 """    GRAPH DATA / GRAPH RENDERING    """
 """
-    Prepare divs in which graphs would be rendered; 
+    Creates a number of Div components for each of the requested graph,
+	assigns an id to each and adds a status-id div where the id of current request is stored;
     Create a list of parameters for each graph (graph-options * current-config)
     based on data from current config and chosed graph types in graph-options;
-    Add a status-id div where the id of current request is stored
 """
 @app.callback(
     Output('graph-target', 'children'),
@@ -382,7 +382,7 @@ def graph_divs_init(clicks, graph_opts, config):
 
 
 """
-    Add the graphs to the newly created divs;
+    Callback to match the graphs with the Div for their respective ids
     Div index corresponds to the graph that will populate it - 
     index points to the graph parameters in graph-list component
 """
@@ -569,28 +569,8 @@ def render_overlay(r_id, conf):
                     get_line_overlay2(r_id['index'], t, xs_overtime, ys_0, ys_1, pair, 
                     OVER_TIME_LBL, graph_types[plot]['y_label'])
                 )
-                
     return all_graphs
 
-    ### 
-'''
-    for p in params:
-        # flag, trace, algorithm, size
-        pload = {"config": conf, "id": str(r_id['index']) }
-        pload.update(p)
-        print(pload)
-        e_resp = requests.post(BACKEND_URL+'/get_graph', json = pload)
-        print(e_resp)
-        d_resp = json.loads(e_resp.text)
-        xs = list(map(int, d_resp['xaxis'][1:-1].split(',')))
-        ys = list(map(float, d_resp['yaxis'][1:-1].split(',')))
-        t = d_resp['res_title']
-        names.append(p['algorithm']) #algorithm name
-        allxys.append({'x' : xs, 'y' : ys})
-        if len(allxys) >= 2: break
-
-    return get_line_overlay2(r_id['index'], title+t, allxys, names, OVER_TIME_LBL, graph_types[flag]['y_label'])'''
-    
 
 
 """
@@ -748,7 +728,6 @@ def get_an_heatmap(idx, title, xs, ys, zs, x_label, y_label):
 """
     Call the layout function to render main html and dcc components on the page
 """
-
 app.layout = serve_layout()
 
 #if __name__ == "__main__":

@@ -54,6 +54,35 @@ Graph types:
 + heatmap - graphs for the entire dataset, ranks algorithms by hit rate
 + pairwise overlay - compares hit rates for 2 or more algorithms in a line graph
 
+Each graph is stored in its own Div, identified by graph's unique id;
+Any graph is created with following general steps:
+
+1. For each type, there is a callback that creates the Div component for the graph
+   and initiates the interval for graph's status updates (function name typically has 'init' at the end);
+2. Each graph Div triggers a callback that requests data for the graph from backend
+3. Once graph data for each axis is retrieved from the backend, a plotly graph with that data
+   is generated in a separate function
+
+**Regular graphs**
+graph_divs_init(clicks, graph_opts, config)
+add_graphs_to_div(current_div, graph_list, conf)
+render_graph(g_id, conf, params, request_id)
+
+get_line(idx, title, xs, ys, x_label, y_label)
+get_scatter(idx, title, xs, ys, x_label, y_label)
+get_bar(idx, title, xs, ys, x_label, y_label)
+
+**Heatmap**
+heatmap_init(clicks):
+render_heatmap(hmap_id, conf)
+get_an_heatmap(idx, title, xs, ys, zs, x_label, y_label)
+
+**Overlay**
+overlay_graph_init(clicks)
+gen_all_pairs(array)
+render_overlay(r_id, conf)
+get_line_overlay2(idx, title, xs, ys0, ys1, names, x_label, y_label)
+
 
 
 
