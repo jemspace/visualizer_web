@@ -1,4 +1,5 @@
 ## Cache visualizer web app
+
 **Front-end Dash application for cache visualizer**
 *Description*
 Contains the graphical layout (html and other components) of Dash web app,
@@ -82,29 +83,4 @@ overlay_graph_init(clicks)
 gen_all_pairs(array)
 render_overlay(r_id, conf)
 get_line_overlay2(idx, title, xs, ys0, ys1, names, x_label, y_label)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
